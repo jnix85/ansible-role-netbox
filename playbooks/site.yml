@@ -9,7 +9,4 @@
 - name: Deploy NetBox active/standby pair
   hosts: netbox_servers
   roles:
-    - docker
-    - acme_cert
-    - netbox
-    - keepalived
+    - role: netbox
