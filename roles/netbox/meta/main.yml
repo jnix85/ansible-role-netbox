@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: netbox
+  author: infrastructure-team
+  description: Deploy NetBox (netbox-docker) active/standby pair with backup/sync and failover
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - netbox
+    - docker
+    - ipam
+    - dcim
+dependencies: []

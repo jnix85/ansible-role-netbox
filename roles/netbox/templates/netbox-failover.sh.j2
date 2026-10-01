@@ -1,0 +1,36 @@
+#!/bin/bash
+# Managed by Ansible — promote this standby to active NetBox.
+# Starts the stack and restores the newest synced dump + media.
+set -euo pipefail
+
+BACKUP_DIR="{{ netbox_backup_dir }}"
+LATEST_SQL=$(ls -1t "${BACKUP_DIR}"/netbox-*.sql.gz 2>/dev/null | head -1)
+LATEST_MEDIA=$(ls -1t "${BACKUP_DIR}"/netbox-media-*.tar.gz 2>/dev/null | head -1)
+
+if [[ -z "${LATEST_SQL}" ]]; then
+  echo "No synced backup found in ${BACKUP_DIR} — aborting." >&2
+  exit 1
+fi
+
+echo ">>> Starting NetBox stack"
+cd "{{ netbox_dir }}"
+docker compose up -d postgres redis redis-cache
+sleep 10
+
+echo ">>> Restoring ${LATEST_SQL}"
+gunzip -c "${LATEST_SQL}" | docker compose exec -T postgres sh -c \
+  'dropdb -U netbox --if-exists netbox && createdb -U netbox netbox && psql -q -U netbox netbox'
+
+if [[ -n "${LATEST_MEDIA}" ]]; then
+  echo ">>> Restoring media ${LATEST_MEDIA}"
+  docker run --rm \
+    -v "{{ netbox_media_volume }}:/media" \
+    -v "${BACKUP_DIR}:/backup:ro" \
+    alpine sh -c "rm -rf /media/* && tar xzf /backup/$(basename "${LATEST_MEDIA}") -C /media"
+fi
+
+echo ">>> Starting full stack"
+docker compose up -d
+
+echo ">>> Done. This node now serves NetBox. Update netbox_role in host_vars"
+echo ">>> (swap active/standby) before the next ansible run."

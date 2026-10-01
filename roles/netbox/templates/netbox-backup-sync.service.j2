@@ -1,0 +1,7 @@
+# Managed by Ansible
+[Unit]
+Description=NetBox DB+media backup and sync to standby ({{ netbox_sync_peer }})
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/netbox-backup.sh

@@ -1,0 +1,6 @@
+---
+- ansible.builtin.import_tasks: deploy.yml
+- ansible.builtin.import_tasks: nginx.yml
+- ansible.builtin.import_tasks: bootstrap.yml
+  when: netbox_role == 'active'
+- ansible.builtin.import_tasks: sync.yml

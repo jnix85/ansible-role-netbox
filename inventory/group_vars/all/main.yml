@@ -1,0 +1,4 @@
+---
+# domain, vips, net_prefix, and vm_fqdn now come from ../shared-inventory
+# (see ansible.cfg's inventory list and shared-inventory/README.md).
+# Nothing project-specific to override here yet.

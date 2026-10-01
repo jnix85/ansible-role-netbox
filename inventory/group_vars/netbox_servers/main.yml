@@ -1,0 +1,33 @@
+---
+# NetBox — netbox-docker stack, active/standby with scheduled pg_dump + media
+# sync to the (stopped) standby. Failover = run netbox-failover.sh on standby.
+
+netbox_docker_repo: https://github.com/netbox-community/netbox-docker.git
+netbox_docker_version: release     # tracking release channel by design (user call)
+netbox_dir: /opt/netbox-docker
+netbox_backup_dir: /var/backups/netbox
+netbox_sync_minutes: 30
+netbox_sync_peer: "{{ (groups['netbox_servers'] | difference([inventory_hostname])) | first }}"
+netbox_superuser_name: admin
+netbox_superuser_email: "admin@{{ domain }}"
+
+# nginx TLS front (compose binds NetBox to 127.0.0.1:8080)
+netbox_public_fqdn: "netbox.{{ domain }}"
+
+acme_cert_name: netbox
+acme_cert_email: "admin@{{ domain }}"
+acme_cert_domains:
+  - "{{ netbox_public_fqdn }}"
+  - "{{ vm_fqdn }}"
+acme_cert_post_hook: "systemctl reload nginx"
+
+keepalived_instances:
+  - name: netbox
+    vrid: 90
+    vip: "{{ vips.netbox }}"
+    prefix: "{{ net_prefix }}"
+    priority: "{{ keepalived_priority }}"
+    auth_pass: "{{ keepalived_netbox_password }}"
+    peers_group: netbox_servers
+    check_cmd: "curl -sf http://127.0.0.1:8080/login/ > /dev/null"
+    nopreempt: true

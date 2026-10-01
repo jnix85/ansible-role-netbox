@@ -1,0 +1,74 @@
+---
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ netbox_backup_dir }}"
+    state: directory
+    mode: "0700"
+  become: true
+
+- name: Install rsync
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+  become: true
+
+- name: Generate sync SSH keypair (active)
+  ansible.builtin.command: >-
+    ssh-keygen -t ed25519 -N "" -C netbox-sync -f {{ netbox_sync_key }}
+  args:
+    creates: "{{ netbox_sync_key }}"
+  become: true
+  when: netbox_role == 'active'
+
+- name: Read sync public key (active)
+  ansible.builtin.slurp:
+    src: "{{ netbox_sync_key }}.pub"
+  become: true
+  register: netbox_sync_pubkey
+  when: netbox_role == 'active'
+
+- name: Authorize active node's key on standby
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ hostvars[netbox_sync_peer].netbox_sync_pubkey.content | b64decode }}"
+    comment: netbox-sync
+  become: true
+  when:
+    - netbox_role == 'standby'
+    - hostvars[netbox_sync_peer].netbox_sync_pubkey is defined
+
+- name: Deploy backup script (active)
+  ansible.builtin.template:
+    src: netbox-backup.sh.j2
+    dest: /usr/local/bin/netbox-backup.sh
+    mode: "0700"
+  become: true
+  when: netbox_role == 'active'
+
+- name: Deploy sync service + timer (active)
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - netbox-backup-sync.service
+    - netbox-backup-sync.timer
+  become: true
+  when: netbox_role == 'active'
+
+- name: Enable sync timer (active)
+  ansible.builtin.systemd:
+    name: netbox-backup-sync.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: netbox_role == 'active'
+
+- name: Deploy failover script (standby)
+  ansible.builtin.template:
+    src: netbox-failover.sh.j2
+    dest: /usr/local/bin/netbox-failover.sh
+    mode: "0700"
+  become: true
+  when: netbox_role == 'standby'

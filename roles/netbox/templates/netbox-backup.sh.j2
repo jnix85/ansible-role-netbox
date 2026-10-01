@@ -1,0 +1,24 @@
+#!/bin/bash
+# Managed by Ansible — dump NetBox DB + media, then rsync to the standby.
+set -euo pipefail
+
+STAMP=$(date +%Y%m%d-%H%M%S)
+BACKUP_DIR="{{ netbox_backup_dir }}"
+
+cd "{{ netbox_dir }}"
+docker compose exec -T postgres pg_dump -U netbox netbox \
+  | gzip > "${BACKUP_DIR}/netbox-${STAMP}.sql.gz"
+
+docker run --rm \
+  -v "{{ netbox_media_volume }}:/media:ro" \
+  -v "${BACKUP_DIR}:/backup" \
+  alpine tar czf "/backup/netbox-media-${STAMP}.tar.gz" -C /media .
+
+# Keep only the newest {{ netbox_backup_keep }} of each
+ls -1t "${BACKUP_DIR}"/netbox-*.sql.gz 2>/dev/null | tail -n +{{ netbox_backup_keep + 1 }} | xargs -r rm --
+ls -1t "${BACKUP_DIR}"/netbox-media-*.tar.gz 2>/dev/null | tail -n +{{ netbox_backup_keep + 1 }} | xargs -r rm --
+
+rsync -az --delete \
+  -e "ssh -i {{ netbox_sync_key }} -o StrictHostKeyChecking=accept-new" \
+  "${BACKUP_DIR}/" \
+  "root@{{ hostvars[netbox_sync_peer].ansible_host | default(hostvars[netbox_sync_peer].vm_ip) }}:{{ netbox_backup_dir }}/"

@@ -1,0 +1,15 @@
+---
+# Deploy the NetBox active/standby pair.
+#
+# NOTE: this play also lists `docker`, `acme_cert`, and `keepalived` —
+# sibling roles from the source monorepo (proxmox-ansible-roles) not
+# vendored into this standalone role directory (keepalived has its own
+# ansible-role-keepalived elsewhere). Provide them yourself before running
+# this play, or drop them and pre-bake the equivalent.
+- name: Deploy NetBox active/standby pair
+  hosts: netbox_servers
+  roles:
+    - docker
+    - acme_cert
+    - netbox
+    - keepalived

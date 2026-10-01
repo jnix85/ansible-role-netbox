@@ -1,0 +1,4 @@
+---
+netbox_sync_key: /root/.ssh/id_ed25519_netbox_sync
+netbox_media_volume: netbox-docker_netbox-media-files
+netbox_backup_keep: 20

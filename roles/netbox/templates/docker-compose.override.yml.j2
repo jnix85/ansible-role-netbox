@@ -1,0 +1,16 @@
+# Managed by Ansible
+services:
+  netbox:
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+  netbox-worker:
+    restart: unless-stopped
+  netbox-housekeeping:
+    restart: unless-stopped
+  postgres:
+    restart: unless-stopped
+  redis:
+    restart: unless-stopped
+  redis-cache:
+    restart: unless-stopped

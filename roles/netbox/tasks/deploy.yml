@@ -1,0 +1,38 @@
+---
+- name: Clone netbox-docker
+  ansible.builtin.git:
+    repo: "{{ netbox_docker_repo }}"
+    dest: "{{ netbox_dir }}"
+    version: "{{ netbox_docker_version }}"
+  become: true
+
+- name: Template compose override
+  ansible.builtin.template:
+    src: docker-compose.override.yml.j2
+    dest: "{{ netbox_dir }}/docker-compose.override.yml"
+    mode: "0644"
+  become: true
+
+- name: Template environment files
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ netbox_dir }}/env/{{ item }}"
+    mode: "0600"
+    owner: root
+    group: root
+  loop:
+    - netbox.env
+    - postgres.env
+    - redis.env
+    - redis-cache.env
+  become: true
+  no_log: true
+
+# Standby: everything is staged but the stack never starts. Failover =
+# /usr/local/bin/netbox-failover.sh (deployed in sync.yml).
+- name: Start NetBox stack (active only)
+  community.docker.docker_compose_v2:
+    project_src: "{{ netbox_dir }}"
+    state: present
+  become: true
+  when: netbox_role == 'active'
